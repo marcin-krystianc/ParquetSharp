@@ -15,7 +15,6 @@ jobs:
   # Note that vcpkg dependencies takes the majority of the build time.
   # We cache them using GitHub Actions cache and export, making the scripts below a bit more complex.
   check-format:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.id != github.event.pull_request.base.repo.id
     name: Check format
     runs-on: ubuntu-18.04
     steps:
