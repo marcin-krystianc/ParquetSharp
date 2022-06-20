@@ -99,4 +99,249 @@ jobs:
       with:
         name: vcpkg-cache-1
         path: cache/vcpkg/**/*.zip
+        
+    # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
+    - name: Start CentOS container and install toolchain
+      if: runner.os == 'Linux' && matrix.arch == 'x64'
+      run: |
+        docker run -d --name centos --entrypoint tail -v $PWD:$PWD -v $VCPKG_INSTALLATION_ROOT:$VCPKG_INSTALLATION_ROOT centos:7 -f /dev/null
+        docker exec centos sh -c "yum install -y centos-release-scl epel-release && \
+                                  yum install -y devtoolset-7 rh-git227 flex bison perl-Data-Dumper perl-IPC-Cmd && \
+                                  curl -fsSL -o /tmp/cmake.sh https://github.com/Kitware/CMake/releases/download/v${{ steps.cmake-info.outputs.version }}/cmake-${{ steps.cmake-info.outputs.version }}-linux-x86_64.sh && \
+                                  sh /tmp/cmake.sh --skip-license --prefix=/usr/local && \
+                                  rm /tmp/cmake.sh"
+
+    # Install arm64 cross-compilation toolchain if required
+    - name: Install arm64 cross-compilation toolchain
+      if: runner.os == 'Linux' && matrix.arch == 'arm64'
+      run: |
+        sudo apt-get update
+        sudo apt-get --yes install g++-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+
+    # Install vcpkg dependencies
+    - name: Install vcpkg build dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: brew install bison
+
+    # .NET Core Setup (and also MSBuild for Windows).
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.dotnet_3_version }}
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.dotnet_5_version }}
+    - name: Pin .NET Core SDK
+      run: dotnet new globaljson --sdk-version ${{ env.dotnet_5_version }}
+    - name: Setup MSBuild
+      if: runner.os == 'Windows'
+      uses: microsoft/setup-msbuild@v1
+
+    - name: connect with upterm 1
+      if: runner.os == 'macOS'
+      uses: lhotari/action-upterm@v1
+      with:
+        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+        limit-access-to-actor: false
       
+    # Compile ParquetSharp and C++ dependencies (and upload the native library as an artifact).
+    - name: Compile native ParquetSharp library (Unix)
+      if: runner.os == 'Linux' || runner.os == 'macOS'
+      run: |
+        if [ "${{ runner.os }}" == "Linux" ] && [ "${{ matrix.arch }}" == "x64" ]; then
+          exec="docker exec -w $PWD -e GITHUB_ACTIONS -e VCPKG_BINARY_SOURCES -e VCPKG_INSTALLATION_ROOT centos scl enable devtoolset-7 rh-git227 --"
+        fi
+        $exec ./build_unix.sh ${{ matrix.arch }}
+      env:
+        VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/cache/vcpkg,readwrite
+    - name: Compile native ParquetSharp library (Windows)
+      if: runner.os == 'Windows'
+      run: ./build_windows.ps1
+      env:
+        VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/cache/vcpkg,readwrite
+    - name: Upload vcpkg arrow logs
+      if: steps.get-cached-vcpkg.outputs.cache-hit != 'true' && (success() || failure())
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ steps.vcpkg-info.outputs.triplet }}-vcpkg-arrow-logs
+        path: ${{ steps.vcpkg-info.outputs.root }}/buildtrees/arrow/*.log
+    
+    - name: Upload vcpkg cache 2
+      uses: actions/upload-artifact@v2
+      with:
+        name: vcpkg-cache-2
+        path: cache/vcpkg/**/*.zip
+
+    - name: Build .NET benchmarks & unit tests
+      run: |
+        dotnet build csharp.benchmark --configuration=Release -p:OSArchitecture=${{ matrix.arch }}
+        dotnet build csharp.test --configuration=Release -p:OSArchitecture=${{ matrix.arch }}
+    - name: Upload native ParquetSharp library
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ steps.vcpkg-info.outputs.triplet }}-native-library
+        path: bin
+
+    - name: Stop CentOS container
+      if: runner.os == 'Linux' && matrix.arch == 'x64'
+      run: docker rm -f centos
+
+
+  # Download all native shared libraries and create the nuget package.
+  # Upload nuget package as an artifact.
+  build-nuget:
+    name: Build NuGet package
+    runs-on: ubuntu-latest
+    needs: build-native
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download all artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts
+    - name: Copy native ParquetSharp libraries
+      run: |
+        mkdir bin
+        cp -rv artifacts/*-native-library/* bin/
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.dotnet_5_version }}
+    - name: Pin .NET Core SDK
+      run: dotnet new globaljson --sdk-version ${{ env.dotnet_5_version }}
+    - name: Build NuGet package
+      run: dotnet build csharp --configuration=Release
+    - name: Upload NuGet artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: nuget-package
+        path: nuget
+
+  # Run .NET unit tests with the nuget package on all platforms and all supported .NET runtimes (thus testing the user workflow).
+  test-nuget:
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, macos-latest, windows-2022]
+        dotnet: [3, 5]
+        arch: [x64]
+        include:
+        - os: windows-2022
+          dotnet: 4
+          arch: x64
+        - os: ubuntu-20.04
+          dotnet: 5
+          arch: arm64
+      fail-fast: false
+    name: Test NuGet package (.NET ${{ matrix.dotnet }} ${{ matrix.arch }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: build-nuget
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Get version
+      id: get-version
+      run: echo "::set-output name=version::$((Select-Xml -Path ./csharp/ParquetSharp.csproj -XPath '/Project/PropertyGroup/Version/text()').node.Value)"
+      shell: pwsh
+    - name: Download NuGet artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: nuget-package
+        path: nuget
+    - name: Setup .NET variables
+      id: dotnet
+      shell: bash
+      run: |
+        major=${{ matrix.dotnet }}
+        case $major in
+          3)
+            framework=netcoreapp3.1
+            ;;
+          4)
+            framework=net472
+            # We build for .NET framework with .NET Core 3.1 SDK
+            major=3
+            ;;
+          5)
+            framework=net5.0
+            ;;
+        esac
+        version=dotnet_${major}_version
+        echo "::set-output name=version::${!version}"
+        echo "::set-output name=framework::$framework"
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ steps.dotnet.outputs.version }}
+    - name: Pin .NET Core SDK
+      run: dotnet new globaljson --sdk-version ${{ steps.dotnet.outputs.version }}
+    - name: Add local NuGet feed
+      run: |
+        dotnet new nugetconfig
+        dotnet nuget add source -n local $PWD/nuget
+    - name: Change test project references to use local NuGet package
+      run: |
+        dotnet remove csharp.test reference csharp/ParquetSharp.csproj
+        dotnet add csharp.test package ParquetSharp -v ${{ steps.get-version.outputs.version }}
+    - name: Setup QEMU for arm64
+      if: matrix.arch == 'arm64'
+      uses: docker/setup-qemu-action@v1
+      with:
+        platforms: arm64
+    - name: Build & Run .NET unit tests (x64)
+      if: matrix.arch == 'x64'
+      run: dotnet test csharp.test --configuration=Release --framework ${{ steps.dotnet.outputs.framework }}
+    - name: Build & Run .NET unit tests (arm64)
+      if: matrix.arch == 'arm64'
+      run: docker run --rm --platform linux/arm64/v8 -v $PWD:$PWD -w $PWD mcr.microsoft.com/dotnet/sdk:${{ steps.dotnet.outputs.version }} dotnet test csharp.test --configuration=Release --framework ${{ steps.dotnet.outputs.framework }}
+
+  # Virtual job that can be configured as a required check before a PR can be merged.
+  all-required-checks-done:
+    name: All required checks done
+    needs:
+      - check-format
+      - test-nuget
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All required checks done"
+
+  # Create a GitHub release and publish the NuGet packages to nuget.org when a tag is pushed.
+  publish-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !github.event.repository.fork
+    name: Publish release
+    runs-on: ubuntu-latest
+    needs: all-required-checks-done
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Check version
+      id: check-version
+      shell: pwsh
+      run: |
+        $version = (Select-Xml -Path ./csharp/ParquetSharp.csproj -XPath '/Project/PropertyGroup/Version/text()').node.Value
+        $tag = "${{ github.ref }}".SubString(10)
+        if (-not ($tag -eq $version)) {
+          echo "::error ::There is a mismatch between the project version ($version) and the tag ($tag)"
+          exit 1
+        }
+        echo "::set-output name=version::$version"
+    - name: Download NuGet artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: nuget-package
+        path: nuget
+    # if version contains "-" treat it as pre-release
+    # example: 1.0.0-beta1
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: ParquetSharp ${{ steps.check-version.outputs.version }}
+        draft: true
+        prerelease: ${{ contains(steps.check-version.outputs.version, '-') }}
+        files: |
+          nuget/ParquetSharp.${{ steps.check-version.outputs.version }}.nupkg
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Publish to NuGet
+      run: dotnet nuget push nuget/ParquetSharp.${{ steps.check-version.outputs.version }}.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
