@@ -75,8 +75,9 @@ then
     fi
   done
   options+=" -D VCPKG_OVERLAY_TRIPLETS=$custom_triplets_dir"
-  options+=" -D VCPKG_INSTALL_OPTIONS=--debug --debug-env"
 fi
+
+options+=" -D VCPKG_INSTALL_OPTIONS=--debug"
 
 cmake -B build/$triplet -S . -D VCPKG_TARGET_TRIPLET=$triplet -D CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake $options 
 cmake --build build/$triplet -j
