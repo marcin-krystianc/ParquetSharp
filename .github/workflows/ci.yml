@@ -97,7 +97,7 @@ jobs:
     - name: Upload vcpkg cache 1
       uses: actions/upload-artifact@v2
       with:
-        name: vcpkg-cache-1
+        name: ${{ runner.os }}-vcpkg-cache-1
         path: cache/vcpkg/**/*.zip
         
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
@@ -163,7 +163,7 @@ jobs:
     - name: Upload vcpkg cache 2
       uses: actions/upload-artifact@v2
       with:
-        name: vcpkg-cache-2
+        name: ${{ runner.os }}-vcpkg-cache-2
         path: cache/vcpkg/**/*.zip
 
     - name: Build .NET benchmarks & unit tests
