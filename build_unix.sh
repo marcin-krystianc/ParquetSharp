@@ -74,8 +74,9 @@ then
         echo "set(VCPKG_BUILD_TYPE release)" >> "$custom_triplet_file"
     fi
   done
-  options+=" -D VCPKG_OVERLAY_TRIPLETS=$custom_triplets_dir --debug"
+  options+=" -D VCPKG_OVERLAY_TRIPLETS=$custom_triplets_dir"
+  options+=" -D VCPKG_INSTALL_OPTIONS=--debug"
 fi
 
-cmake -B build/$triplet -S . -D VCPKG_TARGET_TRIPLET=$triplet -D CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake $options
+cmake -B build/$triplet -S . -D VCPKG_TARGET_TRIPLET=$triplet -D CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake $options 
 cmake --build build/$triplet -j
