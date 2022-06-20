@@ -135,6 +135,9 @@ jobs:
     - name: connect with upterm
       if: runner.os == 'macOS'
       uses: lhotari/action-upterm@v1
+      with:
+        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+        limit-access-to-actor: false
       
     # Compile ParquetSharp and C++ dependencies (and upload the native library as an artifact).
     - name: Compile native ParquetSharp library (Unix)
