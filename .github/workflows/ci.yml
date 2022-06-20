@@ -174,12 +174,10 @@ jobs:
       if: runner.os == 'Linux' && matrix.arch == 'x64'
       run: docker rm -f centos
 
-    - name: connect with upterm 2
-      if: runner.os == 'macOS'
-      uses: lhotari/action-upterm@v1
+    - name: Sleep for 1 hours
+      uses: jakejarvis/wait-action@master
       with:
-        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
-        limit-access-to-actor: false
+        time: '1h'
 
   # Download all native shared libraries and create the nuget package.
   # Upload nuget package as an artifact.
