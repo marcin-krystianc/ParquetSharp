@@ -78,7 +78,7 @@ jobs:
         echo "::set-output name=triplet::$triplet"
         echo "::set-output name=root::$VCPKG_INSTALLATION_ROOT"
         
-        hash ${{ hashFiles('$VCPKG_INSTALLATION_ROOT/scripts/**/*.cmake') }}
+        hash=${{ hashFiles('$VCPKG_INSTALLATION_ROOT/scripts/**/*.cmake') }}
         echo "::set-output name=hash::$hash"
       shell: bash
 
