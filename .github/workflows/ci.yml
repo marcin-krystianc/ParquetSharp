@@ -78,7 +78,7 @@ jobs:
         echo "::set-output name=triplet::$triplet"
         echo "::set-output name=root::$VCPKG_INSTALLATION_ROOT"
         
-        cmake_hash=${{ hashFiles('*.json') }}
+        cmake_hash=${{ hashFiles('$VCPKG_INSTALLATION_ROOT/LICENSE.txt') }}
         echo "::set-output name=cmake_hash::$cmake_hash"
       shell: bash
 
