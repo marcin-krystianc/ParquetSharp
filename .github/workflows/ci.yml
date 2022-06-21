@@ -78,8 +78,8 @@ jobs:
         echo "::set-output name=triplet::$triplet"
         echo "::set-output name=root::$VCPKG_INSTALLATION_ROOT"
         
-        hash=${{ hashFiles('*.json') }}
-        echo "::set-output name=hash::$hash"
+        cmake_hash=${{ hashFiles('*.json') }}
+        echo "::set-output name=cmake_hash::$cmake_hash"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
@@ -94,10 +94,10 @@ jobs:
       uses: actions/cache@v3
       with:
         path: cache/vcpkg
-        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.hash }}-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}
+        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.cmake_hash }}-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}
         restore-keys: |
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.hash }}-${{ hashFiles('vcpkg-configuration.json') }}-
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.hash }}-
+          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.cmake_hash }}-${{ hashFiles('vcpkg-configuration.json') }}-
+          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.cmake_hash }}-
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-
 
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
