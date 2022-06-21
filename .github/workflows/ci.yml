@@ -9,6 +9,7 @@ env:
   DOTNET_NOLOGO: true
   dotnet_3_version: '3.1.414'
   dotnet_5_version: '5.0.402'
+  VCPKG_COMMIT: bde216bf73eaf88c62acef2c46e301908d2900f0
 
 jobs:
 
@@ -76,8 +77,6 @@ jobs:
             ;;
         esac
         echo "::set-output name=triplet::$triplet"
-        echo "::set-output name=root::$VCPKG_INSTALLATION_ROOT"
-        echo "::set-output name=hash_cmake::$VCPKG_INSTALLATION_ROOT/scripts/**/*.cmake"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
@@ -86,17 +85,14 @@ jobs:
       run: echo "::set-output name=version::$(cmake --version | head -n1 | awk '{print $3}')"
       shell: bash
 
-    # Check for cached vcpkg dependencies (use these if we can).
-    - name: Get cached vcpkg dependencies
-      id: get-cached-vcpkg
-      uses: actions/cache@v3
-      with:
-        path: cache/vcpkg
-        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ hashFiles('/usr/local/share/vcpkg/scripts/**/*.cmake') }}-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}
-        restore-keys: |
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ hashFiles('/usr/local/share/vcpkg/scripts/**/*.cmake') }}-${{ hashFiles('vcpkg-configuration.json') }}-
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ hashFiles('/usr/local/share/vcpkg/scripts/**/*.cmake') }}-
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-
+    - uses: friendlyanon/setup-vcpkg@v1
+      with: 
+        committish: $VCPKG_COMMIT
+        cache: true
+        cache-key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}-$VCPKG_COMMIT
+        cache-restore-keys: |
+          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
+        cache-version: 1
 
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
     - name: Start CentOS container and install toolchain
@@ -156,7 +152,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: ${{ steps.vcpkg-info.outputs.triplet }}-vcpkg-arrow-logs
-        path: ${{ steps.vcpkg-info.outputs.root }}/buildtrees/arrow/*.log
+        path: $VCPKG_INSTALLATION_ROOT/buildtrees/arrow/*.log
     - name: Build .NET benchmarks & unit tests
       run: |
         dotnet build csharp.benchmark --configuration=Release -p:OSArchitecture=${{ matrix.arch }}
