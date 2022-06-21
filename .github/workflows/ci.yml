@@ -79,7 +79,7 @@ jobs:
         echo "::set-output name=root::$VCPKG_INSTALLATION_ROOT"
         
         cmake_hash_path="$VCPKG_INSTALLATION_ROOT/scripts/**/*.cmake"
-        echo "::set-output name=cmake_hash::${{ hashFiles($cmake_hash_path) }}"
+        echo "::set-output name=cmake_hash::${{ hashFiles( ${{ $cmake_hash_path}} ) }}"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
