@@ -77,7 +77,7 @@ jobs:
         esac
         echo "::set-output name=triplet::$triplet"
         echo "::set-output name=root::$VCPKG_INSTALLATION_ROOT"
-        echo "::set-output name=hash::${{ hashFiles('vcpkg-configuration.json') }}"
+        echo "::set-output name=hash::${{ hashFiles('$VCPKG_INSTALLATION_ROOT/scripts/**/*.cmake') }}"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
