@@ -47,8 +47,11 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.id != github.event.pull_request.base.repo.id
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-latest]
-        arch: [x64]
+        os: [ubuntu-18.04, macos-latest, windows-2022]
+        arch: [x64, arm64]
+        exclude:
+        - os: windows-2022
+          arch: arm64
       fail-fast: false
     name: Build native ${{ matrix.arch }} library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -87,7 +90,7 @@ jobs:
       id: vcpkg-info
       run: echo "::set-output name=version::$($VCPKG_INSTALLATION_ROOT/vcpkg version | head -n1 | awk '{print $6}')"
       shell: bash
-      
+
     # Check for cached vcpkg dependencies (use these if we can).
     - name: Get cached vcpkg dependencies
       id: get-cached-vcpkg
@@ -100,12 +103,6 @@ jobs:
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-cmake${{ steps.vcpkg-info.outputs.version }}-
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-
 
-    - name: Upload vcpkg cache 1
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${{ runner.os }}-vcpkg-cache-1
-        path: cache/vcpkg/**/*.zip
-        
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
     - name: Start CentOS container and install toolchain
       if: runner.os == 'Linux' && matrix.arch == 'x64'
@@ -144,13 +141,6 @@ jobs:
       if: runner.os == 'Windows'
       uses: microsoft/setup-msbuild@v1
 
-    - name: connect with upterm 1
-      if: runner.os == 'macOS'
-      uses: lhotari/action-upterm@v1
-      with:
-        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
-        limit-access-to-actor: false
-      
     # Compile ParquetSharp and C++ dependencies (and upload the native library as an artifact).
     - name: Compile native ParquetSharp library (Unix)
       if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -172,18 +162,6 @@ jobs:
       with:
         name: ${{ steps.vcpkg-info.outputs.triplet }}-vcpkg-arrow-logs
         path: ${{ steps.vcpkg-info.outputs.root }}/buildtrees/arrow/*.log
-    
-    - name: Upload vcpkg cache 2
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${{ runner.os }}-vcpkg-cache-2
-        path: cache/vcpkg/**/*.zip
-
-    - name: Sleep for 1 hours
-      uses: jakejarvis/wait-action@master
-      with:
-        time: '1h'
-        
     - name: Build .NET benchmarks & unit tests
       run: |
         dotnet build csharp.benchmark --configuration=Release -p:OSArchitecture=${{ matrix.arch }}
@@ -197,7 +175,6 @@ jobs:
     - name: Stop CentOS container
       if: runner.os == 'Linux' && matrix.arch == 'x64'
       run: docker rm -f centos
-
 
   # Download all native shared libraries and create the nuget package.
   # Upload nuget package as an artifact.
