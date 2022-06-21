@@ -79,5 +79,8 @@ fi
 
 options+=" -D VCPKG_INSTALL_OPTIONS=--debug"
 
+echo The value of variable VCPKG_INSTALLATION_ROOT = $VCPKG_INSTALLATION_ROOT 
+echo The value of variable VCPKG_ROOT = $VCPKG_ROOT 
+
 cmake -B build/$triplet -S . -D VCPKG_TARGET_TRIPLET=$triplet -D CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake $options 
 cmake --build build/$triplet -j
