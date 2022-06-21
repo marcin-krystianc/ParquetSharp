@@ -77,6 +77,7 @@ jobs:
         esac
         echo "::set-output name=triplet::$triplet"
         echo "::set-output name=root::$VCPKG_INSTALLATION_ROOT"
+        echo "::set-output name=version::$($VCPKG_INSTALLATION_ROOT/vcpkg version | head -n1 | awk '{print $6}')"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
@@ -85,22 +86,16 @@ jobs:
       run: echo "::set-output name=version::$(cmake --version | head -n1 | awk '{print $3}')"
       shell: bash
 
-    # Get vcpkg version
-    - name: Get vcpkg version
-      id: vcpkg-info
-      run: echo "::set-output name=version::$($VCPKG_INSTALLATION_ROOT/vcpkg version | head -n1 | awk '{print $6}')"
-      shell: bash
-
     # Check for cached vcpkg dependencies (use these if we can).
     - name: Get cached vcpkg dependencies
       id: get-cached-vcpkg
       uses: actions/cache@v3
       with:
         path: cache/vcpkg
-        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-cmake${{ steps.vcpkg-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}
+        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}
         restore-keys: |
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-cmake${{ steps.vcpkg-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-cmake${{ steps.vcpkg-info.outputs.version }}-
+          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-
+          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg${{ steps.vcpkg-info.outputs.version }}-
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-
 
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
