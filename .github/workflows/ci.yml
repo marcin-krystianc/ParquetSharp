@@ -85,7 +85,7 @@ jobs:
       run: echo "::set-output name=version::$(cmake --version | head -n1 | awk '{print $3}')"
       shell: bash
 
-    - name: runner-info
+    - name: Runner-info
       id: runner-info
       run: |
         env
