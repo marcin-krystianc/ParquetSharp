@@ -99,7 +99,7 @@ jobs:
       with:
         path: cache/vcpkg
         # $ImageOS $ImageVersion - 
-        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-Runner${{ steps.runner-info.outputs.ImageOS }}{{ steps.runner-info.outputs.ImageVersion }}
+        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-Runner${{ steps.runner-info.outputs.ImageOS }}${{ steps.runner-info.outputs.ImageVersion }}
         restore-keys: |
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
