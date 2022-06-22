@@ -84,11 +84,13 @@ jobs:
       id: cmake-info
       run: echo "::set-output name=version::$(cmake --version | head -n1 | awk '{print $3}')"
       shell: bash
-    
-    - name: env
-      run: dir env:*
-      shell: pwsh
 
+    - name: runner-info
+      run: |
+        dir env:*
+        echo "::set-output name=Value::$ImageOS$ImageVersion"
+
+      shell: pwsh
     # Check for cached vcpkg dependencies (use these if we can).
     - name: Get cached vcpkg dependencies
       id: get-cached-vcpkg
@@ -96,7 +98,7 @@ jobs:
       with:
         path: cache/vcpkg
         # $ImageOS $ImageVersion - 
-        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-Runner${{ env.ImageOS }}${{ env.ImageVersion }}
+        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-Runner${{ steps.runner-info.outputs.Value }}
         restore-keys: |
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
