@@ -84,6 +84,10 @@ jobs:
       id: cmake-info
       run: echo "::set-output name=version::$(cmake --version | head -n1 | awk '{print $3}')"
       shell: bash
+    
+    - name: env
+      run: dir env:*
+      shell: pwsh
 
     # Check for cached vcpkg dependencies (use these if we can).
     - name: Get cached vcpkg dependencies
