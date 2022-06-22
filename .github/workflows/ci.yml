@@ -88,7 +88,7 @@ jobs:
 
     - name: env
       if: runner.os == 'Windows'
-      run: set
+      run: dir env:*
 
     # Get cmake version, which is used by vcpkg binary caching
     - name: Get cmake version
