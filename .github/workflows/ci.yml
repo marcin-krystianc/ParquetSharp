@@ -103,7 +103,7 @@ jobs:
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-
       env:
         ImageOS: {{ $ImageOS }}
-        ImageVersion: ${{ envImageVersion }}
+        ImageVersion: ${{ env.ImageVersion }}
           
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
     - name: Start CentOS container and install toolchain
