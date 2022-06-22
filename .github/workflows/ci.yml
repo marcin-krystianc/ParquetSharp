@@ -96,10 +96,14 @@ jobs:
       with: 
         committish: ${{ steps.vcpkg-info.outputs.vcpkg_commit }}
         cache: true
-        cache-key: vcpkg-cache-v2-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-configuration${{ hashFiles('vcpkg-configuration.json') }}-vcpkg${{ hashFiles('vcpkg.json') }}-commit${{ steps.vcpkg-info.outputs.vcpkg_commit }}
+        cache-key: vcpkg-cache-v3-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-configuration${{ hashFiles('vcpkg-configuration.json') }}-vcpkg${{ hashFiles('vcpkg.json') }}-commit${{ steps.vcpkg-info.outputs.vcpkg_commit }}
         cache-restore-keys: |
-          vcpkg-cache-v2-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
-          vcpkg-cache-v2-${{ steps.vcpkg-info.outputs.triplet }}-
+          vcpkg-cache-v3-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
+          vcpkg-cache-v3-${{ steps.vcpkg-info.outputs.triplet }}-
+
+    - name: Set vcpkg env
+      run: |
+        echo "VCPKG_INSTALLATION_ROOT=$VCPKG_ROOT" >> $GITHUB_ENV
 
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
     - name: Start CentOS container and install toolchain
