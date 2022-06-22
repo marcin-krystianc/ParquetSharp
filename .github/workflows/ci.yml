@@ -65,8 +65,8 @@ jobs:
       with:
         path: vcpkg-configuration.json
   
-    # Compute vcpkg triplet and root
-    - name: Compute vcpkg triplet and root
+    # Compute vcpkg vcpkg-info
+    - name: Compute vcpkg-info
       id: vcpkg-info
       run: |
         triplet="${{ matrix.arch }}-"
@@ -96,10 +96,10 @@ jobs:
       with: 
         committish: ${{ steps.vcpkg-info.outputs.vcpkg_commit }}
         cache: true
-        cache-key: vcpkg-cache-v1-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-configuration${{ hashFiles('vcpkg-configuration.json') }}-vcpkg${{ hashFiles('vcpkg.json') }}-commit${{ steps.vcpkg-info.outputs.vcpkg_commit }}
+        cache-key: vcpkg-cache-v2-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-configuration${{ hashFiles('vcpkg-configuration.json') }}-vcpkg${{ hashFiles('vcpkg.json') }}-commit${{ steps.vcpkg-info.outputs.vcpkg_commit }}
         cache-restore-keys: |
-          vcpkg-cache-v1-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
-          vcpkg-cache-v1-${{ steps.vcpkg-info.outputs.triplet }}-
+          vcpkg-cache-v2-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
+          vcpkg-cache-v2-${{ steps.vcpkg-info.outputs.triplet }}-
 
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
     - name: Start CentOS container and install toolchain
