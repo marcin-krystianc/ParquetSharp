@@ -60,6 +60,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
+    - name: Read vcpkg.json
+      id: vcpkg-json
+      uses: juliangruber/read-file-action@v1
+      with:
+        path: vcpkg.json
+  
     # Compute vcpkg triplet and root
     - name: Compute vcpkg triplet and root
       id: vcpkg-info
@@ -77,7 +83,7 @@ jobs:
             ;;
         esac
         echo "::set-output name=triplet::$triplet"
-        echo "${{fromJson('vcpkg.json').default-registry.baseline}}"
+        echo "${{fromJson(steps.vcpkg-json.outputs.content).default-registry.baseline}}"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
@@ -132,13 +138,6 @@ jobs:
     - name: Setup MSBuild
       if: runner.os == 'Windows'
       uses: microsoft/setup-msbuild@v1
-
-    - name: connect with upterm 1
-      if: runner.os == 'macOS'
-      uses: lhotari/action-upterm@v1
-      with:
-        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
-        limit-access-to-actor: false
 
     # Compile ParquetSharp and C++ dependencies (and upload the native library as an artifact).
     - name: Compile native ParquetSharp library (Unix)
