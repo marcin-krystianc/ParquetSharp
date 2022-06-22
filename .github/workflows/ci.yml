@@ -60,11 +60,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Read vcpkg.json
-      id: vcpkg-json
+    - name: Read vcpkg-configuration.json
+      id: vcpkg-configuration
       uses: juliangruber/read-file-action@v1
       with:
-        path: vcpkg.json
+        path: vcpkg-configuration.json
   
     # Compute vcpkg triplet and root
     - name: Compute vcpkg triplet and root
@@ -83,7 +83,7 @@ jobs:
             ;;
         esac
         echo "::set-output name=triplet::$triplet"
-        echo "json:${{fromJson(steps.vcpkg-json.outputs.content)}}"
+        echo "json:${{fromJson(steps.vcpkg-configuration.outputs.content).default-registry.baseline}}"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
