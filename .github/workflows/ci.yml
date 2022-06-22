@@ -83,7 +83,7 @@ jobs:
             ;;
         esac
         echo "::set-output name=triplet::$triplet"
-        echo "${{fromJson(steps.vcpkg-json.outputs.content).default-registry.baseline}}"
+        echo "json:${{fromJson(steps.vcpkg-json.outputs.content)}"
       shell: bash
 
     # Get cmake version, which is used by vcpkg binary caching
