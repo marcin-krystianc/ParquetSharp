@@ -92,7 +92,7 @@ jobs:
         cache-key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}-${{ env.VCPKG_COMMIT }}
         cache-restore-keys: |
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
-        cache-version: 1
+        cache-version: 2
 
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
     - name: Start CentOS container and install toolchain
@@ -147,13 +147,11 @@ jobs:
           exec="docker exec -w $PWD -e GITHUB_ACTIONS -e VCPKG_BINARY_SOURCES -e VCPKG_INSTALLATION_ROOT centos scl enable devtoolset-7 rh-git227 --"
         fi
         $exec ./build_unix.sh ${{ matrix.arch }}
-      env:
-        VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/cache/vcpkg,readwrite
+
     - name: Compile native ParquetSharp library (Windows)
       if: runner.os == 'Windows'
       run: ./build_windows.ps1
-      env:
-        VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/cache/vcpkg,readwrite
+
     - name: Upload vcpkg arrow logs
       if: steps.get-cached-vcpkg.outputs.cache-hit != 'true' && (success() || failure())
       uses: actions/upload-artifact@v2
