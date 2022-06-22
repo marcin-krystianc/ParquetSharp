@@ -85,6 +85,11 @@ jobs:
         echo "::set-output name=vcpkg_commit::${{ fromJson(steps.vcpkg-configuration.outputs.content).default-registry.baseline }}"
       shell: bash
 
+
+    - name: env
+      if: runner.os == 'Windows'
+      run: set
+
     # Get cmake version, which is used by vcpkg binary caching
     - name: Get cmake version
       id: cmake-info
