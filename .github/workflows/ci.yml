@@ -88,7 +88,8 @@ jobs:
     - name: runner-info
       run: |
         env
-        echo "::set-output name=Value::$ImageOS$ImageVersion"
+        echo "::set-output name=ImageOS::$ImageOS"
+        echo "::set-output name=ImageVersion::$ImageVersion"
       shell: bash
 
     # Check for cached vcpkg dependencies (use these if we can).
@@ -98,14 +99,11 @@ jobs:
       with:
         path: cache/vcpkg
         # $ImageOS $ImageVersion - 
-        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-Runner${{ steps.runner-info.outputs.Value }}
+        key: vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-Runner${{ steps.runner-info.outputs.ImageOS }}{{ steps.runner-info.outputs.ImageVersion }}
         restore-keys: |
-          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-${{ hashFiles('vcpkg-configuration.json') }}-
+          vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-vcpkg_json${{ hashFiles('vcpkg*.json') }}-
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-cmake${{ steps.cmake-info.outputs.version }}-
           vcpkg-${{ steps.vcpkg-info.outputs.triplet }}-
-      env:
-        ImageOS: $ImageOS
-        ImageVersion: ${{ env.ImageVersion }}
           
     # Setup a CentOS 7 container to build on Linux x64 for backwards compatibility.
     - name: Start CentOS container and install toolchain
