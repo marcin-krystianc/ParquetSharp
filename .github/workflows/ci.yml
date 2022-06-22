@@ -87,7 +87,7 @@ jobs:
 
     - name: runner-info
       run: |
-        dir env:*
+        env
         echo "::set-output name=Value::$ImageOS$ImageVersion"
       shell: bash
 
