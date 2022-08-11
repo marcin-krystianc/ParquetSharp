@@ -288,9 +288,8 @@ namespace ParquetSharp
         private static Array ReadArrayLeafLevel(Node node, BufferedReader<TLogical, TPhysical> valueReader, short repetitionLevel, short definitionLevel)
         {
             var arrayPool = ArrayPool<TLogical>.Shared;
-            var valueChunks = new List<TLogical[]>();
-            var chunkLengths = new List<int>();
-            
+            var valueChunks = new List<(TLogical[] RentedArray, int Length)>();
+
             try
             {
                 var innerNodeIsOptional = node.Repetition == Repetition.Optional;
@@ -314,41 +313,37 @@ namespace ParquetSharp
 
                     var rentedArray = arrayPool.Rent(valuesSpan.Length);
                     valuesSpan.CopyTo(rentedArray);
-                    valueChunks.Add(rentedArray);
-                    chunkLengths.Add(valuesSpan.Length);
+                    valueChunks.Add((rentedArray, valuesSpan.Length));
+
                     if (reachedArrayEnd)
                     {
                         break;
                     }
                 }
 
-                // if (DateTime.Now > DateTime.Today) throw new Exception("ReadArrayLeafLevel");
                 var totalSize = 0;
-                for(var i = 0; i < valueChunks.Count; i++)
+                foreach (var chunk in valueChunks)
                 {
-                    totalSize += chunkLengths[i];
+                    totalSize += chunk.Length;
                 }
-                
+
                 var offset = 0;
                 var values = new TLogical[totalSize];
-                for(var i = 0; i < valueChunks.Count; i++)
+                foreach (var chunk in valueChunks)
                 {
-                    var chunk = valueChunks[i];
-                    var chunkLength = chunkLengths[i];
-                    var readOnlySpan = new ReadOnlySpan<TLogical>(chunk, 0, chunkLength);
-                    var destinationSpan = new Span<TLogical>(values, offset, chunkLength);
-                    readOnlySpan.CopyTo(destinationSpan);
-                    offset += chunkLength;
+                    var inputSpan = new ReadOnlySpan<TLogical>(chunk.RentedArray, 0, chunk.Length);
+                    var destinationSpan = new Span<TLogical>(values, offset, chunk.Length);
+                    inputSpan.CopyTo(destinationSpan);
+                    offset += chunk.Length;
                 }
 
                 return values;
-
             }
             finally
             {
                 foreach (var chunk in valueChunks)
                 {
-                    arrayPool.Return(chunk);
+                    arrayPool.Return(chunk.RentedArray);
                 }
             }
         }
