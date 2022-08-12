@@ -80,7 +80,7 @@ namespace ParquetSharp.Benchmark
             }
 
             float[][] values;
-            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>())
+            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>(NumArrayEntries / 2))
             {
                 values = valueReader.ReadAll(_numRows);
             }
