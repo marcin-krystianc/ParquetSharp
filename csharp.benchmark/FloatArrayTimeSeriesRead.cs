@@ -79,22 +79,29 @@ namespace ParquetSharp.Benchmark
                 objectIds = objectIdReader.ReadAll(_numRows);
             }
 
-            float[][] values;
-            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>(NumArrayEntries / 2))
+            float[][] values1;
+            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>(NumArrayEntries - 1))
             {
-                values = valueReader.ReadAll(_numRows);
+                values1 = valueReader.ReadAll(_numRows);
             }
-
+            
+            float[][] values2;
+            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>(sizeof(float) * NumArrayEntries))
+            {
+                values2 = valueReader.ReadAll(_numRows);
+            }
+            
             fileReader.Close();
 
             if (Check.Enabled)
             {
                 Check.ArraysAreEqual(_allDates, dateTimes);
                 Check.ArraysAreEqual(_allObjectIds, objectIds);
-                Check.ArraysAreEqual(_allValues, values);
+                Check.ArraysAreEqual(_allValues, values1);
+                Check.ArraysAreEqual(_allValues, values2);
             }
 
-            return (dateTimes, objectIds, values);
+            return (dateTimes, objectIds, values1);
         }
 
         [Benchmark]
