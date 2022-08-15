@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -287,65 +286,47 @@ namespace ParquetSharp
 
         private static Array ReadArrayLeafLevel(Node node, BufferedReader<TLogical, TPhysical> valueReader, short repetitionLevel, short definitionLevel)
         {
-            var arrayPool = ArrayPool<TLogical>.Shared;
-            var valueChunks = new List<(TLogical[] RentedArray, int Length)>();
+            var valueChunks = new List<TLogical[]>();
+            var innerNodeIsOptional = node.Repetition == Repetition.Optional;
+            definitionLevel += (short) (innerNodeIsOptional ? 1 : 0);
 
-            try
+            var atArrayStart = true;
+            while (!valueReader.IsEofDefinition)
             {
-                var innerNodeIsOptional = node.Repetition == Repetition.Optional;
-                definitionLevel += (short) (innerNodeIsOptional ? 1 : 0);
-
-                var atArrayStart = true;
-                while (!valueReader.IsEofDefinition)
+                var reachedArrayEnd =
+                    valueReader.ReadValuesAtRepetitionLevel(repetitionLevel, definitionLevel, atArrayStart,
+                        out var valuesSpan);
+                if (reachedArrayEnd && atArrayStart)
                 {
-                    var reachedArrayEnd =
-                        valueReader.ReadValuesAtRepetitionLevel(repetitionLevel, definitionLevel, atArrayStart,
-                            out var valuesSpan);
-
-                    if (reachedArrayEnd || valueReader.IsEofDefinition)
-                    {
-                        if (valueChunks.Count == 0)
-                        {
-                            return valuesSpan.ToArray();
-                        }
-                    }
-                    atArrayStart = false;
-
-                    var rentedArray = arrayPool.Rent(valuesSpan.Length);
-                    valuesSpan.CopyTo(rentedArray);
-                    valueChunks.Add((rentedArray, valuesSpan.Length));
-
-                    if (reachedArrayEnd)
-                    {
-                        break;
-                    }
+                    return valuesSpan.ToArray();
                 }
-
-                var totalSize = 0;
-                foreach (var chunk in valueChunks)
+                atArrayStart = false;
+                valueChunks.Add(valuesSpan.ToArray());
+                if (reachedArrayEnd)
                 {
-                    totalSize += chunk.Length;
-                }
-
-                var offset = 0;
-                var values = new TLogical[totalSize];
-                foreach (var chunk in valueChunks)
-                {
-                    var inputSpan = new ReadOnlySpan<TLogical>(chunk.RentedArray, 0, chunk.Length);
-                    var destinationSpan = new Span<TLogical>(values, offset, chunk.Length);
-                    inputSpan.CopyTo(destinationSpan);
-                    offset += chunk.Length;
-                }
-
-                return values;
-            }
-            finally
-            {
-                foreach (var chunk in valueChunks)
-                {
-                    arrayPool.Return(chunk.RentedArray);
+                    break;
                 }
             }
+
+            if (valueChunks.Count == 1)
+            {
+                return valueChunks[0];
+            }
+
+            var totalSize = 0;
+            foreach (var chunk in valueChunks)
+            {
+                totalSize += chunk.Length;
+            }
+            var offset = 0;
+            var values = new TLogical[totalSize];
+            foreach (var chunk in valueChunks)
+            {
+                chunk.CopyTo(values, offset);
+                offset += chunk.Length;
+            }
+
+            return values;
         }
 
         private static Array ListToArray(List<Array?> list, Type elementType)
