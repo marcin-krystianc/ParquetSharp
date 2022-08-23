@@ -61,8 +61,8 @@ namespace ParquetSharp.Benchmark
             Console.WriteLine();
         }
 
-        [Benchmark(Baseline = true)]
-        public (DateTime[] dateTimes, int[] objectIds, float[][] values) ParquetSharp()
+        [Benchmark()]
+        public (DateTime[] dateTimes, int[] objectIds, float[][] values) ParquetSharp1()
         {
             using var fileReader = new ParquetFileReader(Filename);
             using var groupReader = fileReader.RowGroup(0);
@@ -79,46 +79,58 @@ namespace ParquetSharp.Benchmark
                 objectIds = objectIdReader.ReadAll(_numRows);
             }
 
-            float[][] values1;
-            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>(NumArrayEntries - 1))
+            float[][] values;
+            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>(NumArrayEntries / 4 - 1))
             {
-                values1 = valueReader.ReadAll(_numRows);
+                values = valueReader.ReadAll(_numRows);
             }
-            
-            float[][] values2;
-            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>(sizeof(float) * NumArrayEntries))
-            {
-                values2 = valueReader.ReadAll(_numRows);
-            }
-            
+      
             fileReader.Close();
 
             if (Check.Enabled)
             {
                 Check.ArraysAreEqual(_allDates, dateTimes);
                 Check.ArraysAreEqual(_allObjectIds, objectIds);
-                Check.ArraysAreEqual(_allValues, values1);
-                Check.ArraysAreEqual(_allValues, values2);
+                Check.ArraysAreEqual(_allValues, values);
             }
 
-            return (dateTimes, objectIds, values1);
+            return (dateTimes, objectIds, values);
         }
-
-        [Benchmark]
-        public DataColumn[] ParquetDotNet()
+        
+        [Benchmark()]
+        public (DateTime[] dateTimes, int[] objectIds, float[][] values) ParquetSharp2()
         {
-            using var stream = File.OpenRead(Filename);
-            using var parquetReader = new ParquetReader(stream);
-            var results = parquetReader.ReadEntireRowGroup();
+            using var fileReader = new ParquetFileReader(Filename);
+            using var groupReader = fileReader.RowGroup(0);
+
+            DateTime[] dateTimes;
+            using (var dateTimeReader = groupReader.Column(0).LogicalReader<DateTime>())
+            {
+                dateTimes = dateTimeReader.ReadAll(_numRows);
+            }
+
+            int[] objectIds;
+            using (var objectIdReader = groupReader.Column(1).LogicalReader<int>())
+            {
+                objectIds = objectIdReader.ReadAll(_numRows);
+            }
+
+            float[][] values;
+            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>())
+            {
+                values = valueReader.ReadAll(_numRows);
+            }
+      
+            fileReader.Close();
 
             if (Check.Enabled)
             {
-                Check.ArraysAreEqual(_allDatesAsDateTimeOffsets, (DateTimeOffset[]) results[0].Data);
-                Check.ArraysAreEqual(_allObjectIds, (int[]) results[1].Data);
-                Check.ArraysAreEqual(_allValues, (float[][]) results[2].Data);
+                Check.ArraysAreEqual(_allDates, dateTimes);
+                Check.ArraysAreEqual(_allObjectIds, objectIds);
+                Check.ArraysAreEqual(_allValues, values);
             }
 
-            return results;
+            return (dateTimes, objectIds, values);
         }
 
         private static Column[] CreateFloatArrayColumns()
@@ -154,8 +166,8 @@ namespace ParquetSharp.Benchmark
 
         private const string Filename = "float_array_timeseries.parquet";
         private const int NumArrayEntries = 1_000;
-        private const int NumDates = 1_000;
-        private const int NumObjectIds = 1_000;
+        private const int NumDates = 500;
+        private const int NumObjectIds = 500;
 
         private readonly DateTime[] _allDates;
         private readonly DateTimeOffset[] _allDatesAsDateTimeOffsets;
