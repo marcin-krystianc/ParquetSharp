@@ -8,9 +8,9 @@ using Parquet.Data;
 
 namespace ParquetSharp.Benchmark
 {
-    public class FloatArrayTimeSeriesRead
+    public class FloatTimeSeriesRead : FloatTimeSeriesBase
     {
-        public FloatArrayTimeSeriesRead()
+        public FloatTimeSeriesRead()
         {
             Console.WriteLine("Writing data...");
 
@@ -18,15 +18,15 @@ namespace ParquetSharp.Benchmark
 
             DateTime[] dates;
             int[] objectIds;
-            float[][][] values;
-            (dates, objectIds, values, _numRows) = CreateFloatArrayDataFrame();
+            float[][] values;
+            (dates, objectIds, values, _numRows) = CreateFloatDataFrame(3600);
 
             _allDates = dates.SelectMany(d => Enumerable.Repeat(d, objectIds.Length)).ToArray();
             _allDatesAsDateTimeOffsets = dates.SelectMany(d => Enumerable.Repeat(new DateTimeOffset(d, TimeSpan.Zero), objectIds.Length)).ToArray();
             _allObjectIds = dates.SelectMany(d => objectIds).ToArray();
             _allValues = dates.SelectMany((d, i) => values[i]).ToArray();
 
-            using (var fileWriter = new ParquetFileWriter(Filename, CreateFloatArrayColumns(), Compression.Snappy))
+            using (var fileWriter = new ParquetFileWriter(Filename, CreateFloatColumns(), Compression.Snappy))
             {
                 using var rowGroupWriter = fileWriter.AppendRowGroup();
 
@@ -46,7 +46,7 @@ namespace ParquetSharp.Benchmark
                     }
                 }
 
-                using (var valueWriter = rowGroupWriter.NextColumn().LogicalWriter<float[]>())
+                using (var valueWriter = rowGroupWriter.NextColumn().LogicalWriter<float>())
                 {
                     for (int i = 0; i != dates.Length; ++i)
                     {
@@ -62,7 +62,7 @@ namespace ParquetSharp.Benchmark
         }
 
         [Benchmark(Baseline = true)]
-        public (DateTime[] dateTimes, int[] objectIds, float[][] values) ParquetSharp()
+        public (DateTime[] dateTimes, int[] objectIds, float[] values) ParquetSharp()
         {
             using var fileReader = new ParquetFileReader(Filename);
             using var groupReader = fileReader.RowGroup(0);
@@ -79,8 +79,8 @@ namespace ParquetSharp.Benchmark
                 objectIds = objectIdReader.ReadAll(_numRows);
             }
 
-            float[][] values;
-            using (var valueReader = groupReader.Column(2).LogicalReader<float[]>())
+            float[] values;
+            using (var valueReader = groupReader.Column(2).LogicalReader<float>())
             {
                 values = valueReader.ReadAll(_numRows);
             }
@@ -108,52 +108,18 @@ namespace ParquetSharp.Benchmark
             {
                 Check.ArraysAreEqual(_allDatesAsDateTimeOffsets, (DateTimeOffset[]) results[0].Data);
                 Check.ArraysAreEqual(_allObjectIds, (int[]) results[1].Data);
-                Check.ArraysAreEqual(_allValues, (float[][]) results[2].Data);
+                Check.ArraysAreEqual(_allValues, (float[]) results[2].Data);
             }
 
             return results;
         }
 
-        private static Column[] CreateFloatArrayColumns()
-        {
-            return new Column[]
-            {
-                new Column<DateTime>("DateTime", LogicalType.Timestamp(true, TimeUnit.Millis)),
-                new Column<int>("ObjectId"),
-                new Column<float[]>("Value")
-            };
-        }
-
-        private static (DateTime[] dates, int[] objectIds, float[][][] values, int numRows) CreateFloatArrayDataFrame()
-        {
-            var rand = new Random(123);
-
-            var dates = Enumerable.Range(0, NumDates)
-                .Select(i => new DateTime(2001, 01, 01) + TimeSpan.FromHours(i))
-                .Where(d => d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
-                .ToArray();
-
-            var objectIds = Enumerable.Range(0, NumObjectIds)
-                .Select(i => rand.Next())
-                .Distinct()
-                .OrderBy(i => i)
-                .ToArray();
-
-            var values = dates.Select(d => objectIds.Select(o => Enumerable.Range(0, NumArrayEntries).Select(i => (float) rand.NextDouble()).ToArray()).ToArray()).ToArray();
-            var numRows = values.Select(v => v.Length).Aggregate(0, (sum, l) => sum + l);
-
-            return (dates, objectIds, values, numRows);
-        }
-
-        private const string Filename = "float_array_timeseries.parquet";
-        private const int NumArrayEntries = 1_000;
-        private const int NumDates = 1_000;
-        private const int NumObjectIds = 1_000;
+        const string Filename = "float_timeseries.parquet";
 
         private readonly DateTime[] _allDates;
         private readonly DateTimeOffset[] _allDatesAsDateTimeOffsets;
         private readonly int[] _allObjectIds;
-        private readonly float[][] _allValues;
+        private readonly float[] _allValues;
         private readonly int _numRows;
     }
 }

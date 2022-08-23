@@ -24,6 +24,10 @@ namespace ParquetSharp.Benchmark
 
                 var summaries = BenchmarkRunner.Run(new[]
                 {
+                    BenchmarkConverter.TypeToBenchmarks(typeof(DecimalRead), config),
+                    BenchmarkConverter.TypeToBenchmarks(typeof(DecimalWrite), config),
+                    BenchmarkConverter.TypeToBenchmarks(typeof(FloatTimeSeriesRead), config),
+                    BenchmarkConverter.TypeToBenchmarks(typeof(FloatTimeSeriesWrite), config),
                     BenchmarkConverter.TypeToBenchmarks(typeof(FloatArrayTimeSeriesRead), config),
                 });
 
