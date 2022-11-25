@@ -37,7 +37,7 @@ jobs:
           then
             for file in $files; 
             do 
-               echo "::error file=$file::Code format check failed"
+               echo "::error aaaaaa::Code format check failed"
             done
             exit 1
           fi
