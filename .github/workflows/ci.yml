@@ -33,11 +33,13 @@ jobs:
           dotnet jb cleanupcode "csharp" "csharp.test" "csharp.benchmark" --profile="Built-in: Reformat Code" --settings="ParquetSharp.DotSettings" --verbosity=WARN
 
           files=($(git diff --name-only))
+          echo "a1"
           if [ ${#files[@]} -gt 0 ]
           then
             for file in $files; 
             do 
-               echo "::error aaaaaa::Code format check failed"
+               echo "a2"
+               echo "::error file=$file::Code format check failed"
             done
             exit 1
           fi
