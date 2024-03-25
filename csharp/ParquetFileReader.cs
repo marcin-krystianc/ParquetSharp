@@ -48,8 +48,13 @@ namespace ParquetSharp
 
             using var defaultProperties = readerProperties == null ? ReaderProperties.GetDefaultReaderProperties() : null;
             var properties = readerProperties ?? defaultProperties!;
-
-            _handle = new ParquetHandle(ExceptionInfo.Return<IntPtr, IntPtr>(randomAccessFile.Handle, properties.Handle.IntPtr, ParquetFileReader_Open), ParquetFileReader_Free);
+    
+            GCHandle gch = GCHandle.Alloc(randomAccessFile);
+            _handle = new ParquetHandle(ExceptionInfo.Return<IntPtr, IntPtr>(randomAccessFile.Handle, properties.Handle.IntPtr, ParquetFileReader_Open), ptr =>
+            {
+                ParquetFileReader_Free(ptr);
+                gch.Free();
+            });
             _randomAccessFile = randomAccessFile;
 
             GC.KeepAlive(readerProperties);
@@ -69,7 +74,12 @@ namespace ParquetSharp
             var properties = readerProperties ?? defaultProperties!;
             var randomAccessFile = new ManagedRandomAccessFile(stream, leaveOpen);
 
-            _handle = new ParquetHandle(ExceptionInfo.Return<IntPtr, IntPtr>(randomAccessFile.Handle!, properties.Handle.IntPtr, ParquetFileReader_Open), ParquetFileReader_Free);
+            GCHandle gch = GCHandle.Alloc(randomAccessFile);
+            _handle = new ParquetHandle(ExceptionInfo.Return<IntPtr, IntPtr>(randomAccessFile.Handle!, properties.Handle.IntPtr, ParquetFileReader_Open), ptr =>
+            {
+                ParquetFileReader_Free(ptr);
+                gch.Free();
+            });
             _randomAccessFile = randomAccessFile;
             _ownedFile = true;
 

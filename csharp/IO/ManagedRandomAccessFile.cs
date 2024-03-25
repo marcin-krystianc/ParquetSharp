@@ -19,7 +19,7 @@ namespace ParquetSharp.IO
             _stream = stream;
             _leaveOpen = leaveOpen;
             _read = Read;
-            _close = Close;
+            _close = (out string? exception) => Close(stream, leaveOpen,out exception);
             _getSize = GetSize;
             _tell = Tell;
             _seek = Seek;
@@ -39,17 +39,14 @@ namespace ParquetSharp.IO
         {
             ExceptionInfo.Check(ManagedRandomAccessFile_Create(read, close, getSize, tell, seek, closed, out var handle));
 
-            void Free(IntPtr ptr)
+            void Free(GCHandle gcHandle, IntPtr ptr)
             {
                 RandomAccessFile_Free(ptr);
-                // Capture and keep a handle to the managed file instance so that if we free the last reference to the
-                // C++ random access file and trigger a file close, we can ensure the file hasn't been garbage collected.
-                // Note that this doesn't protect against the case where the C# side handle is disposed or finalized before
-                // the C++ side has finished with it.
-                GC.KeepAlive(managedFile);
+                gcHandle.Free();
             }
 
-            return new ParquetHandle(handle, Free);
+            var gcHandle = GCHandle.Alloc(close);
+            return new ParquetHandle(handle, ptr => Free(gcHandle, ptr));
         }
 
         private byte Read(long nbytes, IntPtr bytesRead, IntPtr dest, out string? exception)
@@ -91,13 +88,13 @@ namespace ParquetSharp.IO
             }
         }
 
-        private byte Close(out string? exception)
+        private static byte Close(Stream stream, bool leaveOpen, out string? exception)
         {
             try
             {
-                if (!_leaveOpen)
+                if (!leaveOpen)
                 {
-                    _stream.Close();
+                    stream.Close();
                 }
 
                 exception = null;
@@ -163,20 +160,25 @@ namespace ParquetSharp.IO
             }
         }
 
-        private byte HandleException(Exception error, out string? exception)
+        ~ManagedRandomAccessFile()
+        {
+           
+        }
+
+        private static byte HandleException(Exception error, out string? exception)
         {
             if (error is OutOfMemoryException)
             {
-                exception = _exceptionMessage = null;
+                exception = null;
                 return 1;
             }
             if (error is IOException)
             {
-                exception = _exceptionMessage = error.ToString();
+                exception = error.ToString();
                 return 5;
             }
 
-            exception = _exceptionMessage = error.ToString();
+            exception = error.ToString();
             return 9;
         }
 
@@ -209,11 +211,6 @@ namespace ParquetSharp.IO
         private readonly SeekDelegate _seek;
         private readonly ClosedDelegate _closed;
         // ReSharper restore PrivateFieldCanBeConvertedToLocalVariable
-
-        // The lifetime of the exception message must match the lifetime of this class.
-        // ReSharper disable NotAccessedField.Local
-        private string? _exceptionMessage;
-        // ReSharper restore NotAccessedField.Local
 
         // Maximum size of a byte array,
         // see https://docs.microsoft.com/en-us/dotnet/framework/configure-apps/file-schema/runtime/gcallowverylargeobjects-element#remarks

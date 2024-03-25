@@ -1,12 +1,7 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
-using BenchmarkDotNet.Analysers;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Exporters;
-using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Loggers;
-using BenchmarkDotNet.Running;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
+using ParquetSharp.IO;
 
 namespace ParquetSharp.Benchmark
 {
@@ -14,67 +9,34 @@ namespace ParquetSharp.Benchmark
     {
         public static int Main()
         {
-            try
+            var expected = Enumerable.Range(0, 1024).ToArray();
+            var filePath = "test.parquet";
+
+            // Write test data.
+            using (var writer = new ParquetFileWriter(filePath, new Column[] { new Column<int>("ids") }))
             {
-                Console.WriteLine("Working directory: {0}", Environment.CurrentDirectory);
+                using var groupWriter = writer.AppendRowGroup();
+                using var columnWriter = groupWriter.NextColumn().LogicalWriter<int>();
 
-                IConfig config;
-                if (Check.Enabled)
-                {
-                    // When checking enabled, only run each test once and use the in-process toolchain to allow debugging
-                    config = ManualConfig
-                        .CreateEmpty()
-                        .AddLogger(DefaultConfig.Instance.GetLoggers().ToArray())
-                        .AddColumnProvider(DefaultConfig.Instance.GetColumnProviders().ToArray())
-                        .AddColumn(new SizeInBytesColumn())
-                        .WithOptions(ConfigOptions.Default | ConfigOptions.StopOnFirstError)
-                        .AddJob(Job.Dry.WithToolchain(new InProcessEmitToolchain(TimeSpan.FromHours(1.0), true)));
-                }
-                else
-                {
-                    config = DefaultConfig
-                        .Instance
-                        .AddColumn(new SizeInBytesColumn())
-                        .WithOptions(ConfigOptions.Default | ConfigOptions.StopOnFirstError);
-                }
+                columnWriter.WriteBatch(expected);
 
-                var summaries = BenchmarkRunner.Run(new[]
-                {
-                    BenchmarkConverter.TypeToBenchmarks(typeof(DecimalRead), config),
-                    BenchmarkConverter.TypeToBenchmarks(typeof(DecimalWrite), config),
-                    BenchmarkConverter.TypeToBenchmarks(typeof(FloatTimeSeriesRead), config),
-                    BenchmarkConverter.TypeToBenchmarks(typeof(FloatTimeSeriesWrite), config),
-                    BenchmarkConverter.TypeToBenchmarks(typeof(FloatArrayTimeSeriesRead), config),
-                    BenchmarkConverter.TypeToBenchmarks(typeof(NestedRead), config),
-                    BenchmarkConverter.TypeToBenchmarks(typeof(NestedWrite), config),
-                });
-
-                // Re-print to the console all the summaries. 
-                var logger = ConsoleLogger.Default;
-
-                logger.WriteLine();
-
-                foreach (var summary in summaries)
-                {
-                    logger.WriteLine();
-                    logger.WriteHeader(summary.Title);
-                    MarkdownExporter.Console.ExportToLog(summary, logger);
-                    ConclusionHelper.Print(logger, config.GetAnalysers().SelectMany(a => a.Analyse(summary)).ToList());
-                }
-
-                return 0;
+                writer.Close();
             }
 
-            catch (Exception exception)
+            for (var i = 0; i < 100_000; ++i)
             {
-                var colour = Console.ForegroundColor;
-
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("ERROR: {0}", exception);
-                Console.ForegroundColor = colour;
+                // Read test data, not disposing of the ManagedRandomAccessFile or ParquetFileReader
+                var fileStream = File.OpenRead(filePath);
+                var managedFile = new ManagedRandomAccessFile(fileStream);
+                var reader = new ParquetFileReader(managedFile);
+                using var groupReader = reader.RowGroup(0);
+                using var columnReader = groupReader.Column(0).LogicalReader<int>();
+                columnReader.ReadAll(expected.Length);
+                
+                GC.Collect();
             }
 
-            return 1;
+            return 0;
         }
     }
 }
