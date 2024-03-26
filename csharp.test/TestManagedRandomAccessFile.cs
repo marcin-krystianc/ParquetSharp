@@ -86,7 +86,7 @@ namespace ParquetSharp.Test
         }
 
         [Test]
-        public static void TestReadExeption()
+        public static void TestReadException()
         {
             var expected = Enumerable.Range(0, 1024 * 1024).ToArray();
 
@@ -150,26 +150,38 @@ namespace ParquetSharp.Test
         }
 
         /// <summary>
-        /// Test that when we don't keep a handle to an OutputStream via a using
-        /// statement, we can still successfully write a file.
+        /// Test that finalizers work correctly and do not crash when we forget to dispose the RandomAccessFile and ParquetFileReader 
         /// </summary>
         [Test]
-        public static void TestDroppingOutputStream()
+        public static void TestFinalizerWithoutDispose()
         {
-            using var buffer = new MemoryStream();
-            using var writer = GetWriterWithDroppedOutput(buffer);
+            var expected = Enumerable.Range(0, 1024).ToArray();
+            var filePath = "test.parquet";
 
-            var data = Enumerable.Range(0, 1024 * 1024).ToArray();
-            for (var i = 0; i < 2; ++i)
+            // Write test data.
+            using (var writer = new ParquetFileWriter(filePath, new Column[] {new Column<int>("ids")}))
             {
-                GC.Collect(3, GCCollectionMode.Forced, blocking: true);
-                GC.WaitForPendingFinalizers();
                 using var groupWriter = writer.AppendRowGroup();
                 using var columnWriter = groupWriter.NextColumn().LogicalWriter<int>();
-                columnWriter.WriteBatch(data);
-                groupWriter.Close();
+                columnWriter.WriteBatch(expected);
+                writer.Close();
             }
-            writer.Close();
+
+            for (var i = 0; i < 100; ++i)
+            {
+                // Read test data, not disposing of the ManagedRandomAccessFile or ParquetFileReader
+                var fileStream = File.OpenRead(filePath);
+                var managedFile = new ManagedRandomAccessFile(fileStream);
+                var reader = new ParquetFileReader(managedFile);
+                using var groupReader = reader.RowGroup(0);
+                using var columnReader = groupReader.Column(0).LogicalReader<int>();
+                columnReader.ReadAll(expected.Length);
+            }
+            
+            GC.Collect(3, GCCollectionMode.Forced, blocking: true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(3, GCCollectionMode.Forced, blocking: true);
+            File.Delete(filePath);
         }
 
         /// <summary>
@@ -237,6 +249,29 @@ namespace ParquetSharp.Test
             reader.Close();
         }
 
+        /// <summary>
+        /// Test that when we don't keep a handle to an OutputStream via a using
+        /// statement, we can still successfully write a file.
+        /// </summary>
+        [Test]
+        public static void TestDroppingOutputStream()
+        {
+            using var buffer = new MemoryStream();
+            using var writer = GetWriterWithDroppedOutput(buffer);
+
+            var data = Enumerable.Range(0, 1024 * 1024).ToArray();
+            for (var i = 0; i < 2; ++i)
+            {
+                GC.Collect(3, GCCollectionMode.Forced, blocking: true);
+                GC.WaitForPendingFinalizers();
+                using var groupWriter = writer.AppendRowGroup();
+                using var columnWriter = groupWriter.NextColumn().LogicalWriter<int>();
+                columnWriter.WriteBatch(data);
+                groupWriter.Close();
+            }
+            writer.Close();
+        }
+        
         private static ParquetFileWriter GetWriterWithDroppedOutput(MemoryStream buffer)
         {
             var stream = new ManagedOutputStream(buffer);
