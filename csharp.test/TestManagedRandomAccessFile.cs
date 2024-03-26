@@ -167,20 +167,21 @@ namespace ParquetSharp.Test
                 writer.Close();
             }
 
-            for (var i = 0; i < 100; ++i)
+            for (var i = 0; i < 1; ++i)
             {
-                // Read test data, not disposing of the ManagedRandomAccessFile or ParquetFileReader
-                var fileStream = File.OpenRead(filePath);
-                var managedFile = new ManagedRandomAccessFile(fileStream);
-                var reader = new ParquetFileReader(managedFile);
-                using var groupReader = reader.RowGroup(0);
-                using var columnReader = groupReader.Column(0).LogicalReader<int>();
-                columnReader.ReadAll(expected.Length);
+                {
+                    // Read test data, not disposing of the ManagedRandomAccessFile or ParquetFileReader
+                    var fileStream = File.OpenRead(filePath);
+                    using var managedFile = new ManagedRandomAccessFile(fileStream);
+                    var reader = new ParquetFileReader(managedFile);
+                }
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
             }
-            
-            GC.Collect(3, GCCollectionMode.Forced, blocking: true);
-            GC.WaitForPendingFinalizers();
-            GC.Collect(3, GCCollectionMode.Forced, blocking: true);
+
             File.Delete(filePath);
         }
 

@@ -27,7 +27,7 @@ namespace ParquetSharp.Benchmark
             {
                 // Read test data, not disposing of the ManagedRandomAccessFile or ParquetFileReader
                 var fileStream = File.OpenRead(filePath);
-                var managedFile = new ManagedRandomAccessFile(fileStream);
+                using var managedFile = new ManagedRandomAccessFile(fileStream);
                 var reader = new ParquetFileReader(managedFile);
                 using var groupReader = reader.RowGroup(0);
                 using var columnReader = groupReader.Column(0).LogicalReader<int>();

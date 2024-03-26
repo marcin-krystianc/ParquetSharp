@@ -8,6 +8,7 @@
     <AssemblyName>ParquetSharp.Benchmark</AssemblyName>
     <RootNamespace>ParquetSharp.Benchmark</RootNamespace>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <StartupObject>ParquetSharp.Benchmark.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
