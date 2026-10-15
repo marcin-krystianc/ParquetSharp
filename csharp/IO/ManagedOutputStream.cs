@@ -54,7 +54,7 @@ namespace ParquetSharp.IO
         {
             try
             {
-#if !NETSTANDARD2_1_OR_GREATER
+#if !(NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER)
                 var buffer = new byte[(int) Math.Min(nbytes, MaxArraySize)];
 #endif
 
@@ -62,7 +62,7 @@ namespace ParquetSharp.IO
                 {
                     var ibytes = (int) Math.Min(nbytes, MaxArraySize);
 
-#if NETSTANDARD2_1_OR_GREATER
+#if (NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER)
                     unsafe
                     {
                         _stream.Write(new Span<byte>(src.ToPointer(), ibytes));
@@ -148,16 +148,16 @@ namespace ParquetSharp.IO
             if (error is OutOfMemoryException)
             {
                 exception = _exceptionMessage = null;
-                return 1;
+                return (byte) ArrowStatusCode.OutOfMemory;
             }
             if (error is IOException)
             {
                 exception = _exceptionMessage = error.ToString();
-                return 5;
+                return (byte) ArrowStatusCode.IOError;
             }
 
             exception = _exceptionMessage = error.ToString();
-            return 9;
+            return (byte) ArrowStatusCode.UnknownError;
         }
 
         [DllImport(ParquetDll.Name)]
